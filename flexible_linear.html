@@ -1,0 +1,425 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>flexible_linear module &mdash; Custom scikit-learn estimators and transformers 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="Custom scikit-learn estimators and transformers 0.1.0 documentation" href="index.html"/>
+        <link rel="prev" title="Custom scikit-learn estimators and transformers" href="index.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Custom scikit-learn estimators and transformers
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">flexible_linear module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">Custom scikit-learn estimators and transformers</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+ 
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>flexible_linear module</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/flexible_linear.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-flexible_linear">
+<span id="flexible-linear-module"></span><h1>flexible_linear module<a class="headerlink" href="#module-flexible_linear" title="Permalink to this headline">¶</a></h1>
+<p>Regularized linear regression with custom training and regularization costs.</p>
+<p>Linear regression estimator that allows specification of arbitrary
+training and regularization cost functions.</p>
+<p>For a linear model:</p>
+<div class="math">
+\[\textrm{predictions} = X \cdot W\]</div>
+<p>this model attempts to find <span class="math">\(W\)</span> by minimizing:</p>
+<div class="math">
+\[\min_{W} \left\{
+    \textrm{cost}(X \cdot W - y) + C \cdot \textrm{reg_cost}(W)
+\right\}\]</div>
+<p>for given training data <span class="math">\(X, y\)</span>. Here <span class="math">\(C\)</span> is the
+regularization strength and <span class="math">\(\textrm{cost}\)</span> and
+<span class="math">\(\textrm{reg_cost}\)</span> are customizable cost functions
+(e.g., the <span class="math">\(\ell^2\)</span> or <span class="math">\(\ell^1\)</span> norms).</p>
+<p><em>Note:</em> In reality, we fit an intercept (bias coefficient) as well.
+Think of <span class="math">\(X\)</span> in the above as having an extra column of 1&#8217;s.</p>
+<p>Ideally, the cost functions should be convex and continuously
+differentiable.</p>
+<p>We provide some cost functions - see the <a class="reference internal" href="#flexible_linear.cost_func_dict" title="flexible_linear.cost_func_dict"><code class="xref py py-data docutils literal"><span class="pre">cost_func_dict</span></code></a>
+dictionary. If you want to use a custom cost function, it should
+be of the form:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">custom_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">):</span>
+    <span class="c1"># &lt;code to compute cost and gradient&gt;</span>
+    <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">gradient</span>
+</pre></div>
+</div>
+<p>where <cite>cost</cite> is a float, <cite>gradient</cite> is an array of the same
+dimensions as <cite>z</cite>, and you may specify any number of keyword
+arguments. See <a class="reference internal" href="#flexible_linear.l1_cost_func" title="flexible_linear.l1_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l1_cost_func()</span></code></a>, <a class="reference internal" href="#flexible_linear.l2_cost_func" title="flexible_linear.l2_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l2_cost_func()</span></code></a>,
+<a class="reference internal" href="#flexible_linear.japanese_cost_func" title="flexible_linear.japanese_cost_func"><code class="xref py py-func docutils literal"><span class="pre">japanese_cost_func()</span></code></a> for examples.</p>
+<dl class="exception">
+<dt id="flexible_linear.FitError">
+<em class="property">exception </em><code class="descclassname">flexible_linear.</code><code class="descname">FitError</code><span class="sig-paren">(</span><em>message</em>, <em>res</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#FitError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.FitError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">Exception</span></code></p>
+<p>Exception raised when fitting fails.</p>
+<dl class="attribute">
+<dt id="flexible_linear.FitError.message">
+<code class="descname">message</code><a class="headerlink" href="#flexible_linear.FitError.message" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>str</em> &#8211; Error message.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="flexible_linear.FitError.res">
+<code class="descname">res</code><a class="headerlink" href="#flexible_linear.FitError.res" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>scipy.optimize.OptimizeResult</em> &#8211; Results returned by
+<cite>scipy.optimize.minimize</cite>. See SciPy documentation on
+<a class="reference external" href="http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html#NOQA">OptimizeResult</a> for details.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="flexible_linear.FlexibleLinearRegression">
+<em class="property">class </em><code class="descclassname">flexible_linear.</code><code class="descname">FlexibleLinearRegression</code><span class="sig-paren">(</span><em>C=1.0</em>, <em>cost_func='l2'</em>, <em>cost_opts=None</em>, <em>reg_cost_func='l2'</em>, <em>reg_cost_opts=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#FlexibleLinearRegression"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.FlexibleLinearRegression" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">sklearn.base.BaseEstimator</span></code></p>
+<p>Regularized linear regression with custom training/regularization costs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>C</strong> (<em>Optional[float]</em>) &#8211; Nonnegative regularization
+coefficient. (Zero means no regularization.)</li>
+<li><strong>cost_func</strong> (<em>Optional[callable or str]</em>) &#8211; Training cost
+function. If not callable, should be one of &#8216;l1&#8217;, &#8216;l2&#8217;,
+or &#8216;japanese&#8217;.</li>
+<li><strong>cost_opts</strong> (<em>Optional[dict]</em>) &#8211; Parameters to pass to
+<cite>cost_func</cite>.</li>
+<li><strong>reg_cost_func</strong> (<em>Optional[callable or str]</em>) &#8211; Regularization
+cost function. If not callable, should be one of &#8216;l1&#8217;,
+&#8216;l2&#8217;, or &#8216;japanese&#8217;.</li>
+<li><strong>reg_cost_opts</strong> (<em>Optional[dict]</em>) &#8211; Parameters to pass to
+<cite>reg_cost_func</cite>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="flexible_linear.FlexibleLinearRegression.coef_">
+<code class="descname">coef_</code><a class="headerlink" href="#flexible_linear.FlexibleLinearRegression.coef_" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>ndarray</em> &#8211; Weight matrix of shape (n_features+1,).
+(coef_[0] is the intercept coefficient.)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="flexible_linear.FlexibleLinearRegression.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><em>X</em>, <em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#FlexibleLinearRegression.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.FlexibleLinearRegression.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>X</strong> (<em>ndarray</em>) &#8211; Training data of shape <code class="docutils literal"><span class="pre">(n_samples,</span> <span class="pre">n_features)</span></code>.</li>
+<li><strong>y</strong> (<em>ndarray</em>) &#8211; Target values of shape <code class="docutils literal"><span class="pre">(n_samples,)</span></code>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">self</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#flexible_linear.FitError" title="flexible_linear.FitError"><code class="xref py py-exc docutils literal"><span class="pre">FitError</span></code></a> &#8211; If the fitting failed.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="flexible_linear.FlexibleLinearRegression.predict">
+<code class="descname">predict</code><span class="sig-paren">(</span><em>X</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#FlexibleLinearRegression.predict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.FlexibleLinearRegression.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict using the model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>X</strong> (<em>ndarray</em>) &#8211; Data of shape <code class="docutils literal"><span class="pre">(n_samples,</span> <span class="pre">n_features)</span></code>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><strong>y</strong> (<em>ndarray</em>) &#8211; Predicted values of shape <code class="docutils literal"><span class="pre">(n_samples,)</span></code>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="data">
+<dt id="flexible_linear.cost_func_dict">
+<code class="descclassname">flexible_linear.</code><code class="descname">cost_func_dict</code><em class="property"> = {'l1': &lt;function l1_cost_func at 0x1068d8620&gt;, 'l2': &lt;function l2_cost_func at 0x1068b4ea0&gt;, 'japanese': &lt;function japanese_cost_func at 0x1080d70d0&gt;}</em><a class="headerlink" href="#flexible_linear.cost_func_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dictionary of implemented cost functions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flexible_linear.japanese_cost_func">
+<code class="descclassname">flexible_linear.</code><code class="descname">japanese_cost_func</code><span class="sig-paren">(</span><em>z</em>, <em>eta=0.1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#japanese_cost_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.japanese_cost_func" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#8216;Japanese bracket&#8217; cost and gradient</p>
+<p>Computes cost and gradient for the cost function:</p>
+<div class="math">
+\[\mathrm{cost}(z) = \eta^2 \sum_i \left(
+    \sqrt{ 1 + \left( \frac{z_i}{\eta} \right)^2 } - 1
+\right) \,.\]</div>
+<p>This cost function interpolates componentwise between the
+<span class="math">\(\ell^2\)</span> and squared <span class="math">\(\ell^1\)</span> norms
+and is thus useful for reducing the impact of outliers
+(or when dealing with heavy-tailed rather than Gaussian noise).</p>
+<p>The key to understanding this is that the <em>Japanese bracket</em></p>
+<div class="math">
+\[\langle z \rangle := \sqrt{ 1 + |z|^2 }\]</div>
+<p>satisfies these asymptotics:</p>
+<div class="math">
+\[\begin{split}\sqrt{ 1 + |z|^2 } - 1 \approx \begin{cases}
+    \frac12 |z|^2 &amp; \text{for $|z| \ll \eta$}
+    \\ |z| &amp; \text{for $|z| \gg \eta$}
+\end{cases} \,.\end{split}\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>z</strong> (<em>ndarray</em>) &#8211; Input vector.</li>
+<li><strong>eta</strong> (<em>Optional[float]</em>) &#8211; Positive scale parameter.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><em>Tuple[float, ndarray]</em> &#8211; The cost and gradient (same shape as <cite>z</cite>).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flexible_linear.l1_cost_func">
+<code class="descclassname">flexible_linear.</code><code class="descname">l1_cost_func</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#l1_cost_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.l1_cost_func" title="Permalink to this definition">¶</a></dt>
+<dd><p><span class="math">\(\ell^1\)</span> cost and gradient</p>
+<div class="math">
+\[\mathrm{cost}(z) = ||z||_{\ell^1} = \sum_i |z_i| \,.\]</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This cost is not differentiable. For a smooth
+alternative, see <a class="reference internal" href="#flexible_linear.japanese_cost_func" title="flexible_linear.japanese_cost_func"><code class="xref py py-func docutils literal"><span class="pre">japanese_cost_func()</span></code></a>.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>z</strong> (<em>ndarray</em>) &#8211; Input vector.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><em>Tuple[float, ndarray]</em> &#8211; The cost and gradient (same shape as <cite>z</cite>).</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flexible_linear.l2_cost_func">
+<code class="descclassname">flexible_linear.</code><code class="descname">l2_cost_func</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#l2_cost_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.l2_cost_func" title="Permalink to this definition">¶</a></dt>
+<dd><p>Squared <span class="math">\(\ell^2\)</span> cost and gradient</p>
+<div class="math">
+\[\mathrm{cost}(z) = \frac12 ||z||_{\ell^2}^2
+= \frac12 \sum_i |z_i|^2 \,.\]</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>z</strong> (<em>ndarray</em>) &#8211; Input vector.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><em>Tuple[float, ndarray]</em> &#8211; The cost and gradient (same shape as <cite>z</cite>).</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flexible_linear.test_estimator">
+<code class="descclassname">flexible_linear.</code><code class="descname">test_estimator</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#test_estimator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.test_estimator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flexible_linear.test_gradients">
+<code class="descclassname">flexible_linear.</code><code class="descname">test_gradients</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#test_gradients"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.test_gradients" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="Custom scikit-learn estimators and transformers" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Markus Kliegl.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

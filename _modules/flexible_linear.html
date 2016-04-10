@@ -1,0 +1,475 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>flexible_linear &mdash; Custom scikit-learn estimators and transformers 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="Custom scikit-learn estimators and transformers 0.1.0 documentation" href="../index.html"/>
+        <link rel="up" title="Module code" href="index.html"/> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Custom scikit-learn estimators and transformers
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../flexible_linear.html">flexible_linear module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../index.html">Custom scikit-learn estimators and transformers</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="index.html">Module code</a> &raquo;</li>
+      
+    <li>flexible_linear</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for flexible_linear</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Author:  Markus Kliegl</span>
+<span class="c1"># License: MIT</span>
+<span class="sd">&quot;&quot;&quot;Regularized linear regression with custom training and regularization costs.</span>
+
+<span class="sd">Linear regression estimator that allows specification of arbitrary</span>
+<span class="sd">training and regularization cost functions.</span>
+
+<span class="sd">For a linear model:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">   \\textrm{predictions} = X \\cdot W</span>
+
+<span class="sd">this model attempts to find :math:`W` by minimizing:</span>
+
+<span class="sd">.. math::</span>
+
+<span class="sd">   \\min_{W} \\left\\{</span>
+<span class="sd">       \\textrm{cost}(X \cdot W - y) + C \\cdot \\textrm{reg_cost}(W)</span>
+<span class="sd">   \\right\\}</span>
+
+<span class="sd">for given training data :math:`X, y`. Here :math:`C` is the</span>
+<span class="sd">regularization strength and :math:`\\textrm{cost}` and</span>
+<span class="sd">:math:`\\textrm{reg_cost}` are customizable cost functions</span>
+<span class="sd">(e.g., the :math:`\\ell^2` or :math:`\\ell^1` norms).</span>
+
+<span class="sd">*Note:* In reality, we fit an intercept (bias coefficient) as well.</span>
+<span class="sd">Think of :math:`X` in the above as having an extra column of 1&#39;s.</span>
+
+<span class="sd">Ideally, the cost functions should be convex and continuously</span>
+<span class="sd">differentiable.</span>
+
+<span class="sd">We provide some cost functions - see the :data:`cost_func_dict`</span>
+<span class="sd">dictionary. If you want to use a custom cost function, it should</span>
+<span class="sd">be of the form::</span>
+
+<span class="sd">    def custom_cost_func(z, **opts):</span>
+<span class="sd">        # &lt;code to compute cost and gradient&gt;</span>
+<span class="sd">        return cost, gradient</span>
+
+<span class="sd">where `cost` is a float, `gradient` is an array of the same</span>
+<span class="sd">dimensions as `z`, and you may specify any number of keyword</span>
+<span class="sd">arguments. See :func:`l1_cost_func`, :func:`l2_cost_func`,</span>
+<span class="sd">:func:`japanese_cost_func` for examples.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy.optimize</span>
+<span class="kn">from</span> <span class="nn">sklearn.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span>
+<span class="kn">from</span> <span class="nn">sklearn.utils.validation</span> <span class="kn">import</span> <span class="n">check_X_y</span><span class="p">,</span> <span class="n">check_array</span><span class="p">,</span> <span class="n">check_is_fitted</span>
+
+
+<div class="viewcode-block" id="l2_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.l2_cost_func">[docs]</a><span class="k">def</span> <span class="nf">l2_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Squared :math:`\\ell^2` cost and gradient</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \\mathrm{cost}(z) = \\frac12 ||z||_{\\ell^2}^2</span>
+<span class="sd">        = \\frac12 \sum_i |z_i|^2 \,.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (ndarray): Input vector.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">),</span> <span class="n">z</span></div>
+
+
+<div class="viewcode-block" id="l1_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.l1_cost_func">[docs]</a><span class="k">def</span> <span class="nf">l1_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;:math:`\\ell^1` cost and gradient</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \\mathrm{cost}(z) = ||z||_{\\ell^1} = \\sum_i |z_i| \,.</span>
+
+
+<span class="sd">    .. note::</span>
+
+<span class="sd">       This cost is not differentiable. For a smooth</span>
+<span class="sd">       alternative, see :func:`japanese_cost_func`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (ndarray): Input vector.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">z</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="japanese_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.japanese_cost_func">[docs]</a><span class="k">def</span> <span class="nf">japanese_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;&#39;Japanese bracket&#39; cost and gradient</span>
+
+<span class="sd">    Computes cost and gradient for the cost function:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \\mathrm{cost}(z) = \\eta^2 \\sum_i \\left(</span>
+<span class="sd">            \\sqrt{ 1 + \\left( \\frac{z_i}{\\eta} \\right)^2 } - 1</span>
+<span class="sd">        \\right) \,.</span>
+
+<span class="sd">    This cost function interpolates componentwise between the</span>
+<span class="sd">    :math:`\\ell^2` and squared :math:`\\ell^1` norms</span>
+<span class="sd">    and is thus useful for reducing the impact of outliers</span>
+<span class="sd">    (or when dealing with heavy-tailed rather than Gaussian noise).</span>
+
+<span class="sd">    The key to understanding this is that the *Japanese bracket*</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        \\langle z \\rangle := \\sqrt{ 1 + |z|^2 }</span>
+
+<span class="sd">    satisfies these asymptotics:</span>
+
+<span class="sd">    .. math::</span>
+
+<span class="sd">        \\sqrt{ 1 + |z|^2 } - 1 \\approx \\begin{cases}</span>
+<span class="sd">            \\frac12 |z|^2 &amp; \\text{for $|z| \\ll \\eta$}</span>
+<span class="sd">            \\\\ |z| &amp; \\text{for $|z| \\gg \\eta$}</span>
+<span class="sd">        \\end{cases} \,.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        z (ndarray): Input vector.</span>
+<span class="sd">        eta (Optional[float]): Positive scale parameter.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">z_norm</span> <span class="o">=</span> <span class="n">z</span> <span class="o">/</span> <span class="n">eta</span>
+    <span class="n">z_jap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">z_norm</span> <span class="o">*</span> <span class="n">z_norm</span><span class="p">)</span>  <span class="c1"># componentwise Japanese bracket</span>
+    <span class="n">cost</span> <span class="o">=</span> <span class="n">eta</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">z_jap</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">gradient</span> <span class="o">=</span> <span class="n">z</span> <span class="o">/</span> <span class="n">z_jap</span>
+    <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">gradient</span></div>
+
+<span class="n">cost_func_dict</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;l2&#39;</span><span class="p">:</span> <span class="n">l2_cost_func</span><span class="p">,</span>
+    <span class="s1">&#39;l1&#39;</span><span class="p">:</span> <span class="n">l1_cost_func</span><span class="p">,</span>
+    <span class="s1">&#39;japanese&#39;</span><span class="p">:</span> <span class="n">japanese_cost_func</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Dictionary of implemented cost functions.&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="FitError"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.FitError">[docs]</a><span class="k">class</span> <span class="nc">FitError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Exception raised when fitting fails.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        message (str): Error message.</span>
+<span class="sd">        res (scipy.optimize.OptimizeResult): Results returned by</span>
+<span class="sd">            `scipy.optimize.minimize`. See SciPy documentation on</span>
+<span class="sd">            `OptimizeResult`_ for details.</span>
+
+<span class="sd">    .. _OptimizeResult: http://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html  # NOQA</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">res</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">res</span> <span class="o">=</span> <span class="n">res</span></div>
+
+
+<div class="viewcode-block" id="FlexibleLinearRegression"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.FlexibleLinearRegression">[docs]</a><span class="k">class</span> <span class="nc">FlexibleLinearRegression</span><span class="p">(</span><span class="n">BaseEstimator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Regularized linear regression with custom training/regularization costs.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        C (Optional[float]): Nonnegative regularization</span>
+<span class="sd">            coefficient. (Zero means no regularization.)</span>
+<span class="sd">        cost_func (Optional[callable or str]): Training cost</span>
+<span class="sd">            function. If not callable, should be one of &#39;l1&#39;, &#39;l2&#39;,</span>
+<span class="sd">            or &#39;japanese&#39;.</span>
+<span class="sd">        cost_opts (Optional[dict]): Parameters to pass to</span>
+<span class="sd">            `cost_func`.</span>
+<span class="sd">        reg_cost_func (Optional[callable or str]): Regularization</span>
+<span class="sd">            cost function. If not callable, should be one of &#39;l1&#39;,</span>
+<span class="sd">            &#39;l2&#39;, or &#39;japanese&#39;.</span>
+<span class="sd">        reg_cost_opts (Optional[dict]): Parameters to pass to</span>
+<span class="sd">            `reg_cost_func`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        coef_ (ndarray): Weight matrix of shape (n_features+1,).</span>
+<span class="sd">            (coef_[0] is the intercept coefficient.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">cost_func</span><span class="o">=</span><span class="s1">&#39;l2&#39;</span><span class="p">,</span> <span class="n">cost_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+            <span class="n">reg_cost_func</span><span class="o">=</span><span class="s1">&#39;l2&#39;</span><span class="p">,</span> <span class="n">reg_cost_opts</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">C</span> <span class="o">=</span> <span class="n">C</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cost_func</span> <span class="o">=</span> <span class="n">cost_func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cost_opts</span> <span class="o">=</span> <span class="n">cost_opts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_cost_func</span> <span class="o">=</span> <span class="n">reg_cost_func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reg_cost_opts</span> <span class="o">=</span> <span class="n">reg_cost_opts</span>
+
+    <span class="k">def</span> <span class="nf">_check_cost_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cost_func</span><span class="p">,</span> <span class="n">cost_opts</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">cost_func</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cost_func</span> <span class="o">=</span> <span class="n">cost_func_dict</span><span class="p">[</span><span class="n">cost_func</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Unknown cost function: &#39;{}&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cost_func</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">cost_opts</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">cost_opts</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">return</span> <span class="n">cost_func</span><span class="p">,</span> <span class="n">cost_opts</span>
+
+<div class="viewcode-block" id="FlexibleLinearRegression.fit"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.FlexibleLinearRegression.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit the model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            X (ndarray): Training data of shape ``(n_samples, n_features)``.</span>
+<span class="sd">            y (ndarray): Target values of shape ``(n_samples,)``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            self</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            FitError: If the fitting failed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">check_X_y</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">y_numeric</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">C</span>
+        <span class="n">cost_func</span><span class="p">,</span> <span class="n">cost_opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_cost_func</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cost_func</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cost_opts</span><span class="p">)</span>
+        <span class="n">reg_cost_func</span><span class="p">,</span> <span class="n">reg_cost_opts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_cost_func</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reg_cost_func</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_cost_opts</span><span class="p">)</span>
+
+        <span class="c1"># add a column of ones to X (for intercept coefficient)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">),</span> <span class="n">X</span><span class="p">))</span>
+
+        <span class="k">def</span> <span class="nf">objective</span><span class="p">(</span><span class="n">W</span><span class="p">):</span>
+            <span class="c1"># compute training cost/grad</span>
+            <span class="n">cost</span><span class="p">,</span> <span class="n">outer_grad</span> <span class="o">=</span> <span class="n">cost_func</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">W</span><span class="p">)</span> <span class="o">-</span> <span class="n">y</span><span class="p">,</span> <span class="o">**</span><span class="n">cost_opts</span><span class="p">)</span>
+            <span class="n">grad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">outer_grad</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>  <span class="c1"># chain rule</span>
+
+            <span class="c1"># add regularization cost/grad (but don&#39;t regularize intercept)</span>
+            <span class="n">reg_cost</span><span class="p">,</span> <span class="n">reg_grad</span> <span class="o">=</span> <span class="n">reg_cost_func</span><span class="p">(</span><span class="n">W</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="o">**</span><span class="n">reg_cost_opts</span><span class="p">)</span>
+            <span class="n">cost</span> <span class="o">+=</span> <span class="n">C</span> <span class="o">*</span> <span class="n">reg_cost</span>
+            <span class="n">grad</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+=</span> <span class="n">C</span> <span class="o">*</span> <span class="n">reg_grad</span>
+
+            <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">grad</span>
+
+        <span class="n">initial_coef_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span> <span class="n">initial_coef_</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;L-BFGS-B&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">x</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">FitError</span><span class="p">(</span><span class="s2">&quot;Fit failed: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">message</span><span class="p">),</span> <span class="n">res</span><span class="o">=</span><span class="n">res</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="FlexibleLinearRegression.predict"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.FlexibleLinearRegression.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Predict using the model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            X (ndarray): Data of shape ``(n_samples, n_features)``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            y (ndarray): Predicted values of shape ``(n_samples,)``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">check_is_fitted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;coef_&#39;</span><span class="p">)</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">check_array</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">n_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n_features</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;X should have </span><span class="si">%d</span><span class="s2"> features, not </span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">n_features</span><span class="p">,</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">y</span></div></div>
+
+
+<div class="viewcode-block" id="test_estimator"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.test_estimator">[docs]</a><span class="k">def</span> <span class="nf">test_estimator</span><span class="p">():</span>
+    <span class="kn">from</span> <span class="nn">sklearn.utils.estimator_checks</span> <span class="kn">import</span> <span class="n">check_estimator</span>
+    <span class="n">check_estimator</span><span class="p">(</span><span class="n">FlexibleLinearRegression</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="test_gradients"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.test_gradients">[docs]</a><span class="k">def</span> <span class="nf">test_gradients</span><span class="p">():</span>
+    <span class="n">z0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">cost_func</span> <span class="ow">in</span> <span class="n">cost_func_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="n">cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">grad</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="n">cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">scipy</span><span class="o">.</span><span class="n">optimize</span><span class="o">.</span><span class="n">check_grad</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">grad</span><span class="p">,</span> <span class="n">z0</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-5</span></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">nose2</span>
+    <span class="n">nose2</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Markus Kliegl.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
