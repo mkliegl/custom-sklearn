@@ -2,7 +2,8 @@
 # License: MIT
 """Regularized linear regression with custom training and regularization costs.
 
-Linear regression estimator that allows specification of arbitrary
+:class:`FlexibleLinearRegression` is a scikit-learn-compatible linear
+regression estimator that allows specification of arbitrary
 training and regularization cost functions.
 
 For a linear model:
@@ -22,7 +23,7 @@ this model attempts to find :math:`W` by minimizing:
 for given training data :math:`X, y`. Here :math:`C` is the
 regularization strength and :math:`\\textrm{cost}` and
 :math:`\\textrm{reg_cost}` are customizable cost functions
-(e.g., the :math:`\\ell^2` or :math:`\\ell^1` norms).
+(e.g., the squared :math:`\\ell^2` norm or the :math:`\\ell^1` norm).
 
 *Note:* In reality, we fit an intercept (bias coefficient) as well.
 Think of :math:`X` in the above as having an extra column of 1's.
@@ -30,9 +31,10 @@ Think of :math:`X` in the above as having an extra column of 1's.
 Ideally, the cost functions should be convex and continuously
 differentiable.
 
-We provide some cost functions - see the :data:`cost_func_dict`
-dictionary. If you want to use a custom cost function, it should
-be of the form::
+We provide some cost functions: see :func:`l1_cost_func`,
+:func:`l2_cost_func`, :func:`japanese_cost_func` (or the
+:data:`cost_func_dict` dictionary). If you want to use a
+custom cost function, it should be of the form::
 
     def custom_cost_func(z, **opts):
         # <code to compute cost and gradient>
@@ -40,9 +42,9 @@ be of the form::
 
 where `cost` is a float, `gradient` is an array of the same
 dimensions as `z`, and you may specify any number of keyword
-arguments. See :func:`l1_cost_func`, :func:`l2_cost_func`,
-:func:`japanese_cost_func` for examples.
+arguments.
 """
+from __future__ import division
 import numpy as np
 import scipy.optimize
 from sklearn.base import BaseEstimator
@@ -50,12 +52,12 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
 def l2_cost_func(z):
-    """Squared :math:`\\ell^2` cost and gradient
+    """Normalized squared :math:`\\ell^2` cost and gradient
 
     .. math::
 
-        \\mathrm{cost}(z) = \\frac12 ||z||_{\\ell^2}^2
-        = \\frac12 \sum_i |z_i|^2 \,.
+        \\mathrm{cost}(z) = \\frac{1}{2n} ||z||_{\\ell^2}^2
+        = \\frac{1}{2n} \sum_{i=1}^n |z_i|^2 \,.
 
     Args:
         z (ndarray): Input vector.
@@ -63,15 +65,17 @@ def l2_cost_func(z):
     Returns:
         Tuple[float, ndarray]: The cost and gradient (same shape as `z`).
     """
-    return 0.5 * np.dot(z, z), z
+    N = len(z)
+    return 0.5 * np.dot(z, z) / N, z / N
 
 
 def l1_cost_func(z):
-    """:math:`\\ell^1` cost and gradient
+    """Normalized :math:`\\ell^1` cost and gradient
 
     .. math::
 
-        \\mathrm{cost}(z) = ||z||_{\\ell^1} = \\sum_i |z_i| \,.
+        \\mathrm{cost}(z) = \\frac{1}{n} ||z||_{\\ell^1}
+        = \\frac{1}{n} \\sum_{i=1}^n |z_i| \,.
 
 
     .. note::
@@ -85,7 +89,8 @@ def l1_cost_func(z):
     Returns:
         Tuple[float, ndarray]: The cost and gradient (same shape as `z`).
     """
-    return np.sum(np.abs(z)), np.sign(z)
+    N = len(z)
+    return np.sum(np.abs(z)) / N, np.sign(z) / N
 
 
 def japanese_cost_func(z, eta=0.1):
@@ -95,18 +100,21 @@ def japanese_cost_func(z, eta=0.1):
 
     .. math::
 
-        \\mathrm{cost}(z) = \\eta^2 \\sum_i \\left(
+        \\mathrm{cost}(z) = \\frac{\\eta^2}{n} \\sum_{i=1}^n \\left(
             \\sqrt{ 1 + \\left( \\frac{z_i}{\\eta} \\right)^2 } - 1
         \\right) \,.
 
     This cost function interpolates componentwise between the
-    :math:`\\ell^2` and squared :math:`\\ell^1` norms
+    squared :math:`\\ell^2` norm (for :math:`|z_i| \ll \\eta`) and
+    the :math:`\\ell^1` norm (for :math:`|z_i| \gg \\eta`)
     and is thus useful for reducing the impact of outliers
     (or when dealing with heavy-tailed rather than Gaussian noise).
+    Unlike the :math:`\\ell^1` norm, this cost function is smooth.
 
     The key to understanding this is that the *Japanese bracket*
 
     .. math::
+
         \\langle z \\rangle := \\sqrt{ 1 + |z|^2 }
 
     satisfies these asymptotics:
@@ -114,8 +122,8 @@ def japanese_cost_func(z, eta=0.1):
     .. math::
 
         \\sqrt{ 1 + |z|^2 } - 1 \\approx \\begin{cases}
-            \\frac12 |z|^2 & \\text{for $|z| \\ll \\eta$}
-            \\\\ |z| & \\text{for $|z| \\gg \\eta$}
+            \\frac12 |z|^2 & \\text{for $|z| \\ll 1$}
+            \\\\ |z| & \\text{for $|z| \\gg 1$}
         \\end{cases} \,.
 
     Args:
@@ -125,11 +133,12 @@ def japanese_cost_func(z, eta=0.1):
     Returns:
         Tuple[float, ndarray]: The cost and gradient (same shape as `z`).
     """
+    N = len(z)
     z_norm = z / eta
     z_jap = np.sqrt(1.0 + z_norm * z_norm)  # componentwise Japanese bracket
     cost = eta**2 * np.sum(z_jap - 1.0)
     gradient = z / z_jap
-    return cost, gradient
+    return cost / N, gradient / N
 
 cost_func_dict = {
     'l2': l2_cost_func,
