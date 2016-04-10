@@ -129,7 +129,8 @@
   <div class="section" id="module-flexible_linear">
 <span id="flexible-linear-module"></span><h1>flexible_linear module<a class="headerlink" href="#module-flexible_linear" title="Permalink to this headline">¶</a></h1>
 <p>Regularized linear regression with custom training and regularization costs.</p>
-<p>Linear regression estimator that allows specification of arbitrary
+<p><a class="reference internal" href="#flexible_linear.FlexibleLinearRegression" title="flexible_linear.FlexibleLinearRegression"><code class="xref py py-class docutils literal"><span class="pre">FlexibleLinearRegression</span></code></a> is a scikit-learn-compatible linear
+regression estimator that allows specification of arbitrary
 training and regularization cost functions.</p>
 <p>For a linear model:</p>
 <div class="math">
@@ -142,14 +143,15 @@ training and regularization cost functions.</p>
 <p>for given training data <span class="math">\(X, y\)</span>. Here <span class="math">\(C\)</span> is the
 regularization strength and <span class="math">\(\textrm{cost}\)</span> and
 <span class="math">\(\textrm{reg_cost}\)</span> are customizable cost functions
-(e.g., the <span class="math">\(\ell^2\)</span> or <span class="math">\(\ell^1\)</span> norms).</p>
+(e.g., the squared <span class="math">\(\ell^2\)</span> norm or the <span class="math">\(\ell^1\)</span> norm).</p>
 <p><em>Note:</em> In reality, we fit an intercept (bias coefficient) as well.
 Think of <span class="math">\(X\)</span> in the above as having an extra column of 1&#8217;s.</p>
 <p>Ideally, the cost functions should be convex and continuously
 differentiable.</p>
-<p>We provide some cost functions - see the <a class="reference internal" href="#flexible_linear.cost_func_dict" title="flexible_linear.cost_func_dict"><code class="xref py py-data docutils literal"><span class="pre">cost_func_dict</span></code></a>
-dictionary. If you want to use a custom cost function, it should
-be of the form:</p>
+<p>We provide some cost functions: see <a class="reference internal" href="#flexible_linear.l1_cost_func" title="flexible_linear.l1_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l1_cost_func()</span></code></a>,
+<a class="reference internal" href="#flexible_linear.l2_cost_func" title="flexible_linear.l2_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l2_cost_func()</span></code></a>, <a class="reference internal" href="#flexible_linear.japanese_cost_func" title="flexible_linear.japanese_cost_func"><code class="xref py py-func docutils literal"><span class="pre">japanese_cost_func()</span></code></a> (or the
+<a class="reference internal" href="#flexible_linear.cost_func_dict" title="flexible_linear.cost_func_dict"><code class="xref py py-data docutils literal"><span class="pre">cost_func_dict</span></code></a> dictionary). If you want to use a
+custom cost function, it should be of the form:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">custom_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="o">**</span><span class="n">opts</span><span class="p">):</span>
     <span class="c1"># &lt;code to compute cost and gradient&gt;</span>
     <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">gradient</span>
@@ -157,8 +159,7 @@ be of the form:</p>
 </div>
 <p>where <cite>cost</cite> is a float, <cite>gradient</cite> is an array of the same
 dimensions as <cite>z</cite>, and you may specify any number of keyword
-arguments. See <a class="reference internal" href="#flexible_linear.l1_cost_func" title="flexible_linear.l1_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l1_cost_func()</span></code></a>, <a class="reference internal" href="#flexible_linear.l2_cost_func" title="flexible_linear.l2_cost_func"><code class="xref py py-func docutils literal"><span class="pre">l2_cost_func()</span></code></a>,
-<a class="reference internal" href="#flexible_linear.japanese_cost_func" title="flexible_linear.japanese_cost_func"><code class="xref py py-func docutils literal"><span class="pre">japanese_cost_func()</span></code></a> for examples.</p>
+arguments.</p>
 <dl class="exception">
 <dt id="flexible_linear.FitError">
 <em class="property">exception </em><code class="descclassname">flexible_linear.</code><code class="descname">FitError</code><span class="sig-paren">(</span><em>message</em>, <em>res</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#FitError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.FitError" title="Permalink to this definition">¶</a></dt>
@@ -258,7 +259,7 @@ cost function. If not callable, should be one of &#8216;l1&#8217;,
 
 <dl class="data">
 <dt id="flexible_linear.cost_func_dict">
-<code class="descclassname">flexible_linear.</code><code class="descname">cost_func_dict</code><em class="property"> = {'l1': &lt;function l1_cost_func at 0x1068d8620&gt;, 'l2': &lt;function l2_cost_func at 0x1068b4ea0&gt;, 'japanese': &lt;function japanese_cost_func at 0x1080d70d0&gt;}</em><a class="headerlink" href="#flexible_linear.cost_func_dict" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">flexible_linear.</code><code class="descname">cost_func_dict</code><em class="property"> = {'l2': &lt;function l2_cost_func at 0x1068b1d08&gt;, 'japanese': &lt;function japanese_cost_func at 0x1080c9ea0&gt;, 'l1': &lt;function l1_cost_func at 0x1068d0488&gt;}</em><a class="headerlink" href="#flexible_linear.cost_func_dict" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dictionary of implemented cost functions.</p>
 </dd></dl>
 
@@ -268,21 +269,23 @@ cost function. If not callable, should be one of &#8216;l1&#8217;,
 <dd><p>&#8216;Japanese bracket&#8217; cost and gradient</p>
 <p>Computes cost and gradient for the cost function:</p>
 <div class="math">
-\[\mathrm{cost}(z) = \eta^2 \sum_i \left(
+\[\mathrm{cost}(z) = \frac{\eta^2}{n} \sum_{i=1}^n \left(
     \sqrt{ 1 + \left( \frac{z_i}{\eta} \right)^2 } - 1
 \right) \,.\]</div>
 <p>This cost function interpolates componentwise between the
-<span class="math">\(\ell^2\)</span> and squared <span class="math">\(\ell^1\)</span> norms
+squared <span class="math">\(\ell^2\)</span> norm (for <span class="math">\(|z_i| \ll \eta\)</span>) and
+the <span class="math">\(\ell^1\)</span> norm (for <span class="math">\(|z_i| \gg \eta\)</span>)
 and is thus useful for reducing the impact of outliers
-(or when dealing with heavy-tailed rather than Gaussian noise).</p>
+(or when dealing with heavy-tailed rather than Gaussian noise).
+Unlike the <span class="math">\(\ell^1\)</span> norm, this cost function is smooth.</p>
 <p>The key to understanding this is that the <em>Japanese bracket</em></p>
 <div class="math">
 \[\langle z \rangle := \sqrt{ 1 + |z|^2 }\]</div>
 <p>satisfies these asymptotics:</p>
 <div class="math">
 \[\begin{split}\sqrt{ 1 + |z|^2 } - 1 \approx \begin{cases}
-    \frac12 |z|^2 &amp; \text{for $|z| \ll \eta$}
-    \\ |z| &amp; \text{for $|z| \gg \eta$}
+    \frac12 |z|^2 &amp; \text{for $|z| \ll 1$}
+    \\ |z| &amp; \text{for $|z| \gg 1$}
 \end{cases} \,.\end{split}\]</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -304,9 +307,10 @@ and is thus useful for reducing the impact of outliers
 <dl class="function">
 <dt id="flexible_linear.l1_cost_func">
 <code class="descclassname">flexible_linear.</code><code class="descname">l1_cost_func</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#l1_cost_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.l1_cost_func" title="Permalink to this definition">¶</a></dt>
-<dd><p><span class="math">\(\ell^1\)</span> cost and gradient</p>
+<dd><p>Normalized <span class="math">\(\ell^1\)</span> cost and gradient</p>
 <div class="math">
-\[\mathrm{cost}(z) = ||z||_{\ell^1} = \sum_i |z_i| \,.\]</div>
+\[\mathrm{cost}(z) = \frac{1}{n} ||z||_{\ell^1}
+= \frac{1}{n} \sum_{i=1}^n |z_i| \,.\]</div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">This cost is not differentiable. For a smooth
@@ -327,10 +331,10 @@ alternative, see <a class="reference internal" href="#flexible_linear.japanese_c
 <dl class="function">
 <dt id="flexible_linear.l2_cost_func">
 <code class="descclassname">flexible_linear.</code><code class="descname">l2_cost_func</code><span class="sig-paren">(</span><em>z</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flexible_linear.html#l2_cost_func"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flexible_linear.l2_cost_func" title="Permalink to this definition">¶</a></dt>
-<dd><p>Squared <span class="math">\(\ell^2\)</span> cost and gradient</p>
+<dd><p>Normalized squared <span class="math">\(\ell^2\)</span> cost and gradient</p>
 <div class="math">
-\[\mathrm{cost}(z) = \frac12 ||z||_{\ell^2}^2
-= \frac12 \sum_i |z_i|^2 \,.\]</div>
+\[\mathrm{cost}(z) = \frac{1}{2n} ||z||_{\ell^2}^2
+= \frac{1}{2n} \sum_{i=1}^n |z_i|^2 \,.\]</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />

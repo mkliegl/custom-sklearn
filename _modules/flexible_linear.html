@@ -131,7 +131,8 @@
 <span class="c1"># License: MIT</span>
 <span class="sd">&quot;&quot;&quot;Regularized linear regression with custom training and regularization costs.</span>
 
-<span class="sd">Linear regression estimator that allows specification of arbitrary</span>
+<span class="sd">:class:`FlexibleLinearRegression` is a scikit-learn-compatible linear</span>
+<span class="sd">regression estimator that allows specification of arbitrary</span>
 <span class="sd">training and regularization cost functions.</span>
 
 <span class="sd">For a linear model:</span>
@@ -151,7 +152,7 @@
 <span class="sd">for given training data :math:`X, y`. Here :math:`C` is the</span>
 <span class="sd">regularization strength and :math:`\\textrm{cost}` and</span>
 <span class="sd">:math:`\\textrm{reg_cost}` are customizable cost functions</span>
-<span class="sd">(e.g., the :math:`\\ell^2` or :math:`\\ell^1` norms).</span>
+<span class="sd">(e.g., the squared :math:`\\ell^2` norm or the :math:`\\ell^1` norm).</span>
 
 <span class="sd">*Note:* In reality, we fit an intercept (bias coefficient) as well.</span>
 <span class="sd">Think of :math:`X` in the above as having an extra column of 1&#39;s.</span>
@@ -159,9 +160,10 @@
 <span class="sd">Ideally, the cost functions should be convex and continuously</span>
 <span class="sd">differentiable.</span>
 
-<span class="sd">We provide some cost functions - see the :data:`cost_func_dict`</span>
-<span class="sd">dictionary. If you want to use a custom cost function, it should</span>
-<span class="sd">be of the form::</span>
+<span class="sd">We provide some cost functions: see :func:`l1_cost_func`,</span>
+<span class="sd">:func:`l2_cost_func`, :func:`japanese_cost_func` (or the</span>
+<span class="sd">:data:`cost_func_dict` dictionary). If you want to use a</span>
+<span class="sd">custom cost function, it should be of the form::</span>
 
 <span class="sd">    def custom_cost_func(z, **opts):</span>
 <span class="sd">        # &lt;code to compute cost and gradient&gt;</span>
@@ -169,9 +171,9 @@
 
 <span class="sd">where `cost` is a float, `gradient` is an array of the same</span>
 <span class="sd">dimensions as `z`, and you may specify any number of keyword</span>
-<span class="sd">arguments. See :func:`l1_cost_func`, :func:`l2_cost_func`,</span>
-<span class="sd">:func:`japanese_cost_func` for examples.</span>
+<span class="sd">arguments.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">scipy.optimize</span>
 <span class="kn">from</span> <span class="nn">sklearn.base</span> <span class="kn">import</span> <span class="n">BaseEstimator</span>
@@ -179,12 +181,12 @@
 
 
 <div class="viewcode-block" id="l2_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.l2_cost_func">[docs]</a><span class="k">def</span> <span class="nf">l2_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Squared :math:`\\ell^2` cost and gradient</span>
+    <span class="sd">&quot;&quot;&quot;Normalized squared :math:`\\ell^2` cost and gradient</span>
 
 <span class="sd">    .. math::</span>
 
-<span class="sd">        \\mathrm{cost}(z) = \\frac12 ||z||_{\\ell^2}^2</span>
-<span class="sd">        = \\frac12 \sum_i |z_i|^2 \,.</span>
+<span class="sd">        \\mathrm{cost}(z) = \\frac{1}{2n} ||z||_{\\ell^2}^2</span>
+<span class="sd">        = \\frac{1}{2n} \sum_{i=1}^n |z_i|^2 \,.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        z (ndarray): Input vector.</span>
@@ -192,15 +194,17 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">),</span> <span class="n">z</span></div>
+    <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="o">/</span> <span class="n">N</span><span class="p">,</span> <span class="n">z</span> <span class="o">/</span> <span class="n">N</span></div>
 
 
 <div class="viewcode-block" id="l1_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.l1_cost_func">[docs]</a><span class="k">def</span> <span class="nf">l1_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;:math:`\\ell^1` cost and gradient</span>
+    <span class="sd">&quot;&quot;&quot;Normalized :math:`\\ell^1` cost and gradient</span>
 
 <span class="sd">    .. math::</span>
 
-<span class="sd">        \\mathrm{cost}(z) = ||z||_{\\ell^1} = \\sum_i |z_i| \,.</span>
+<span class="sd">        \\mathrm{cost}(z) = \\frac{1}{n} ||z||_{\\ell^1}</span>
+<span class="sd">        = \\frac{1}{n} \\sum_{i=1}^n |z_i| \,.</span>
 
 
 <span class="sd">    .. note::</span>
@@ -214,7 +218,8 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">z</span><span class="p">)</span></div>
+    <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">))</span> <span class="o">/</span> <span class="n">N</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">/</span> <span class="n">N</span></div>
 
 
 <div class="viewcode-block" id="japanese_cost_func"><a class="viewcode-back" href="../flexible_linear.html#flexible_linear.japanese_cost_func">[docs]</a><span class="k">def</span> <span class="nf">japanese_cost_func</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">eta</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
@@ -224,18 +229,21 @@
 
 <span class="sd">    .. math::</span>
 
-<span class="sd">        \\mathrm{cost}(z) = \\eta^2 \\sum_i \\left(</span>
+<span class="sd">        \\mathrm{cost}(z) = \\frac{\\eta^2}{n} \\sum_{i=1}^n \\left(</span>
 <span class="sd">            \\sqrt{ 1 + \\left( \\frac{z_i}{\\eta} \\right)^2 } - 1</span>
 <span class="sd">        \\right) \,.</span>
 
 <span class="sd">    This cost function interpolates componentwise between the</span>
-<span class="sd">    :math:`\\ell^2` and squared :math:`\\ell^1` norms</span>
+<span class="sd">    squared :math:`\\ell^2` norm (for :math:`|z_i| \ll \\eta`) and</span>
+<span class="sd">    the :math:`\\ell^1` norm (for :math:`|z_i| \gg \\eta`)</span>
 <span class="sd">    and is thus useful for reducing the impact of outliers</span>
 <span class="sd">    (or when dealing with heavy-tailed rather than Gaussian noise).</span>
+<span class="sd">    Unlike the :math:`\\ell^1` norm, this cost function is smooth.</span>
 
 <span class="sd">    The key to understanding this is that the *Japanese bracket*</span>
 
 <span class="sd">    .. math::</span>
+
 <span class="sd">        \\langle z \\rangle := \\sqrt{ 1 + |z|^2 }</span>
 
 <span class="sd">    satisfies these asymptotics:</span>
@@ -243,8 +251,8 @@
 <span class="sd">    .. math::</span>
 
 <span class="sd">        \\sqrt{ 1 + |z|^2 } - 1 \\approx \\begin{cases}</span>
-<span class="sd">            \\frac12 |z|^2 &amp; \\text{for $|z| \\ll \\eta$}</span>
-<span class="sd">            \\\\ |z| &amp; \\text{for $|z| \\gg \\eta$}</span>
+<span class="sd">            \\frac12 |z|^2 &amp; \\text{for $|z| \\ll 1$}</span>
+<span class="sd">            \\\\ |z| &amp; \\text{for $|z| \\gg 1$}</span>
 <span class="sd">        \\end{cases} \,.</span>
 
 <span class="sd">    Args:</span>
@@ -254,11 +262,12 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        Tuple[float, ndarray]: The cost and gradient (same shape as `z`).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
     <span class="n">z_norm</span> <span class="o">=</span> <span class="n">z</span> <span class="o">/</span> <span class="n">eta</span>
     <span class="n">z_jap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">z_norm</span> <span class="o">*</span> <span class="n">z_norm</span><span class="p">)</span>  <span class="c1"># componentwise Japanese bracket</span>
     <span class="n">cost</span> <span class="o">=</span> <span class="n">eta</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">z_jap</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span>
     <span class="n">gradient</span> <span class="o">=</span> <span class="n">z</span> <span class="o">/</span> <span class="n">z_jap</span>
-    <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">gradient</span></div>
+    <span class="k">return</span> <span class="n">cost</span> <span class="o">/</span> <span class="n">N</span><span class="p">,</span> <span class="n">gradient</span> <span class="o">/</span> <span class="n">N</span></div>
 
 <span class="n">cost_func_dict</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s1">&#39;l2&#39;</span><span class="p">:</span> <span class="n">l2_cost_func</span><span class="p">,</span>
