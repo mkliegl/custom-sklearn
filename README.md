@@ -13,7 +13,8 @@ The documentation is viewable [here][doc].
   regularization cost functions.
 * [heavytail.ipynb](heavytail.ipynb) is a [Jupyter][jupyter] notebook demonstrating
   the use of [flexible_linear.py](flexible_linear.py) to improve
-  predictions in the presence of heavy-tailed noise.
+  predictions in the presence of heavy-tailed noise. See [this post][hvytail]
+  for more details.
 
 
 
@@ -43,3 +44,4 @@ MIT. See the [LICENSE](LICENSE) file for more details.
 [sklearn]: http://scikit-learn.org/
 [jupyter]: http://jupyter.org
 [sphinx]:  http://www.sphinx-doc.org/
+[hvytail]: https://mkliegl.github.io/heavy-tailed-noise
