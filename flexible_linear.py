@@ -1,6 +1,6 @@
 # Author:  Markus Kliegl
 # License: MIT
-"""Regularized linear regression with custom training and regularization costs.
+r"""Regularized linear regression with custom training and regularization costs.
 
 :class:`FlexibleLinearRegression` is a scikit-learn-compatible linear
 regression estimator that allows specification of arbitrary
@@ -10,20 +10,20 @@ For a linear model:
 
 .. math::
 
-   \\textrm{predictions} = X \\cdot W
+   \textrm{predictions} = X \cdot W
 
 this model attempts to find :math:`W` by minimizing:
 
 .. math::
 
-   \\min_{W} \\left\\{
-       \\textrm{cost}(X \cdot W - y) + C \\cdot \\textrm{reg_cost}(W)
-   \\right\\}
+   \min_{W} \left\{
+       \textrm{cost}(X \cdot W - y) + C \cdot \textrm{reg_cost}(W)
+   \right\}
 
 for given training data :math:`X, y`. Here :math:`C` is the
-regularization strength and :math:`\\textrm{cost}` and
-:math:`\\textrm{reg_cost}` are customizable cost functions
-(e.g., the squared :math:`\\ell^2` norm or the :math:`\\ell^1` norm).
+regularization strength and :math:`\textrm{cost}` and
+:math:`\textrm{reg_cost}` are customizable cost functions
+(e.g., the squared :math:`\ell^2` norm or the :math:`\ell^1` norm).
 
 *Note:* In reality, we fit an intercept (bias coefficient) as well.
 Think of :math:`X` in the above as having an extra column of 1's.
@@ -52,12 +52,12 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 
 
 def l2_cost_func(z):
-    """Normalized squared :math:`\\ell^2` cost and gradient
+    r"""Normalized squared :math:`\ell^2` cost and gradient
 
     .. math::
 
-        \\mathrm{cost}(z) = \\frac{1}{2n} ||z||_{\\ell^2}^2
-        = \\frac{1}{2n} \sum_{i=1}^n |z_i|^2 \,.
+        \mathrm{cost}(z) = \frac{1}{2n} ||z||_{\ell^2}^2
+        = \frac{1}{2n} \sum_{i=1}^n |z_i|^2 \,.
 
     Args:
         z (ndarray): Input vector.
@@ -70,12 +70,12 @@ def l2_cost_func(z):
 
 
 def l1_cost_func(z):
-    """Normalized :math:`\\ell^1` cost and gradient
+    r"""Normalized :math:`\ell^1` cost and gradient
 
     .. math::
 
-        \\mathrm{cost}(z) = \\frac{1}{n} ||z||_{\\ell^1}
-        = \\frac{1}{n} \\sum_{i=1}^n |z_i| \,.
+        \mathrm{cost}(z) = \frac{1}{n} ||z||_{\ell^1}
+        = \frac{1}{n} \sum_{i=1}^n |z_i| \,.
 
 
     .. note::
@@ -94,37 +94,37 @@ def l1_cost_func(z):
 
 
 def japanese_cost_func(z, eta=0.1):
-    """'Japanese bracket' cost and gradient
+    r"""'Japanese bracket' cost and gradient
 
     Computes cost and gradient for the cost function:
 
     .. math::
 
-        \\mathrm{cost}(z) = \\frac{\\eta^2}{n} \\sum_{i=1}^n \\left(
-            \\sqrt{ 1 + \\left( \\frac{z_i}{\\eta} \\right)^2 } - 1
-        \\right) \,.
+        \mathrm{cost}(z) = \frac{\eta^2}{n} \sum_{i=1}^n \left(
+            \sqrt{ 1 + \left( \frac{z_i}{\eta} \right)^2 } - 1
+        \right) \,.
 
     This cost function interpolates componentwise between the
-    squared :math:`\\ell^2` norm (for :math:`|z_i| \ll \\eta`) and
-    the :math:`\\ell^1` norm (for :math:`|z_i| \gg \\eta`)
+    squared :math:`\ell^2` norm (for :math:`|z_i| \ll \eta`) and
+    the :math:`\ell^1` norm (for :math:`|z_i| \gg \eta`)
     and is thus useful for reducing the impact of outliers
     (or when dealing with heavy-tailed rather than Gaussian noise).
-    Unlike the :math:`\\ell^1` norm, this cost function is smooth.
+    Unlike the :math:`\ell^1` norm, this cost function is smooth.
 
     The key to understanding this is that the *Japanese bracket*
 
     .. math::
 
-        \\langle z \\rangle := \\sqrt{ 1 + |z|^2 }
+        \langle z \rangle := \sqrt{ 1 + |z|^2 }
 
     satisfies these asymptotics:
 
     .. math::
 
-        \\sqrt{ 1 + |z|^2 } - 1 \\approx \\begin{cases}
-            \\frac12 |z|^2 & \\text{for $|z| \\ll 1$}
-            \\\\ |z| & \\text{for $|z| \\gg 1$}
-        \\end{cases} \,.
+        \sqrt{ 1 + |z|^2 } - 1 \approx \begin{cases}
+            \frac12 |z|^2 & \text{for $|z| \ll 1$}
+            \\ |z| & \text{for $|z| \gg 1$}
+        \end{cases} \,.
 
     Args:
         z (ndarray): Input vector.
